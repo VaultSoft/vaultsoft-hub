@@ -4,10 +4,10 @@
 block_cipher = None
 
 a = Analysis(
-    ["vaultsoft_hub/__main__.py"],
+    ["run_app.py"],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[("icon.ico", ".")],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -36,5 +36,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon="icon.ico",
 )
