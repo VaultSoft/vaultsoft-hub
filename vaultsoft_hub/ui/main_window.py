@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         root.addLayout(header)
 
         self.status_line = QLabel("Loading your apps…")
+        self.status_line.setWordWrap(True)
         self.status_line.setStyleSheet("color: #9aa4ae;")
         root.addWidget(self.status_line)
 
