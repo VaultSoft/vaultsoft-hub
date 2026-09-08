@@ -1,0 +1,48 @@
+name: Release
+
+# Push a tag like v1.0.0 and this builds a portable Windows exe, zips it to
+# match VaultSoft's existing naming convention, and attaches it to a GitHub
+# Release. The Hub (and every app it manages) reads its "latest version"
+# straight from GitHub Releases, so this workflow IS the update mechanism -
+# nothing else needs to change when you ship a new Hub version.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller build.spec
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $zipName = "VaultSoftHub_v${version}_Portable.zip"
+          Compress-Archive -Path "dist/VaultSoftHub.exe" -DestinationPath $zipName
+          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true

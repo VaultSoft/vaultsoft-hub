@@ -1,0 +1,37 @@
+{
+  "$schema_note": "Edit this file to add/remove apps. No rebuild of the Hub is needed — it's fetched live from GitHub. Version numbers and download links are NOT listed here; the Hub resolves those automatically from each repo's GitHub Releases at runtime.",
+  "apps": [
+    {
+      "id": "pulsemonitor",
+      "name": "PulseMonitor",
+      "repo": "VaultSoft/PulseMonitor",
+      "category": "System",
+      "description": "Real-time CPU, GPU, RAM, disk and network monitoring in a clean desktop overlay.",
+      "homepage": "https://vaultsoft.github.io/PulseMonitor/",
+      "executable_hint": "PulseMonitor.exe"
+    },
+    {
+      "id": "sweptpc",
+      "name": "SweptPC",
+      "repo": "VaultSoft/SweptPC",
+      "category": "Cleanup",
+      "description": "Scan and remove junk files, browser cache, temp files and more in one click.",
+      "homepage": "https://vaultsoft.github.io/SweptPC/",
+      "executable_hint": "SweptPC.exe"
+    },
+    {
+      "id": "wavescout",
+      "name": "WaveScout",
+      "repo": "VaultSoft/WaveScout",
+      "category": "Network",
+      "description": "Free portable WiFi analyser. Scan nearby networks, check signal strength, find the best channel and monitor your connection live.",
+      "homepage": "https://vaultsoft.github.io/WaveScout/",
+      "executable_hint": "WaveScout.exe"
+    }
+  ],
+  "cross_promo": {
+    "enabled": true,
+    "text": "Run a UK trade business? Automate your Google review requests with StarPing.",
+    "url": "https://starping.co.uk"
+  }
+}
