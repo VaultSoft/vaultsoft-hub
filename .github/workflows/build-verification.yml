@@ -1,0 +1,59 @@
+name: Build Verification
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install PyInstaller
+
+      - name: Run tests
+        run: python -B -m unittest discover -s tests -v
+
+      - name: Verify syntax and imports
+        run: |
+          python -B -m compileall -q run_app.py vaultsoft_hub tests
+          python -B -c "import vaultsoft_hub; import vaultsoft_hub.app; import vaultsoft_hub.github_api; import vaultsoft_hub.installer; import vaultsoft_hub.self_update; print('syntax/import ok')"
+
+      - name: Build portable executable
+        run: python -B -m PyInstaller build.spec --noconfirm --clean
+
+      - name: Package portable zip
+        shell: pwsh
+        run: |
+          $version = python -c "from vaultsoft_hub import __version__; print(__version__)"
+          $zipName = "VaultSoftHub_v${version}_Portable.zip"
+          $zipPath = Join-Path "dist" $zipName
+          if (-not (Test-Path "dist\VaultSoftHub.exe")) {
+            throw "Missing dist\VaultSoftHub.exe"
+          }
+          Compress-Archive -Path "dist\VaultSoftHub.exe" -DestinationPath $zipPath -Force
+          if (-not (Test-Path $zipPath)) {
+            throw "Missing $zipPath"
+          }
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: VaultSoftHub-portable
+          path: dist/VaultSoftHub_v*_Portable.zip
