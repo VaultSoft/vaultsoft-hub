@@ -7,6 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from vaultsoft_hub.github_api import (
     GitHubApiError,
+    GitHubOfflineError,
+    is_prerelease_version,
     fetch_latest_release,
     is_newer,
     normalize_version,
@@ -92,8 +94,18 @@ class OfflineMessageTests(unittest.TestCase):
         import requests
 
         mock_get.side_effect = requests.ConnectionError("HTTPSConnectionPool(host='api.github.com'...) very long")
-        with self.assertRaisesRegex(GitHubApiError, r"^Couldn't reach GitHub\. Check your internet connection\.$"):
+        with self.assertRaisesRegex(GitHubOfflineError, r"^Couldn't reach GitHub\. Check your internet connection\.$"):
             fetch_latest_release("VaultSoft/WaveScout", include_prereleases=True)
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_rate_limit_is_explained_and_not_called_offline(self, mock_get):
+        resp = MagicMock()
+        resp.status_code = 403
+        resp.headers = {"X-RateLimit-Remaining": "0"}
+        mock_get.return_value = resp
+        with self.assertRaisesRegex(GitHubApiError, "hourly limit") as ctx:
+            fetch_latest_release("VaultSoft/WaveScout")
+        self.assertNotIsInstance(ctx.exception, GitHubOfflineError)
 
 
 class PrereleaseTests(unittest.TestCase):
@@ -118,6 +130,19 @@ class PrereleaseTests(unittest.TestCase):
         release = fetch_latest_release("VaultSoft/BatteryVault", include_prereleases=True)
         self.assertEqual(release.version, "1.0.0-beta")
         self.assertIn("/releases?", mock_get.call_args.args[0])
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_prerelease_flag_is_carried(self, mock_get):
+        mock_get.return_value = self._list_response([self._release("v1.0.0-beta", prerelease=True)])
+        self.assertTrue(fetch_latest_release("VaultSoft/B", include_prereleases=True).prerelease)
+        mock_get.return_value = self._list_response([self._release("v1.1.0")])
+        self.assertFalse(fetch_latest_release("VaultSoft/B", include_prereleases=True).prerelease)
+
+    def test_is_prerelease_version(self):
+        self.assertTrue(is_prerelease_version("1.0.0-beta"))
+        self.assertTrue(is_prerelease_version("1.0.0rc1"))
+        self.assertFalse(is_prerelease_version("1.0.0"))
+        self.assertFalse(is_prerelease_version("1.2"))
 
     @patch("vaultsoft_hub.github_api.requests.get")
     def test_drafts_are_skipped(self, mock_get):

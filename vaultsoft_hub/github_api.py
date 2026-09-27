@@ -24,6 +24,18 @@ class GitHubApiError(RuntimeError):
     """Raised for any network/parse failure talking to GitHub."""
 
 
+class GitHubOfflineError(GitHubApiError):
+    """GitHub couldn't be reached at all (no connection, DNS, timeout)."""
+
+
+_PRERELEASE_SUFFIX = re.compile(r"^\d+(?:\.\d+)*[-_.+]?[A-Za-z]")
+
+
+def is_prerelease_version(version: str) -> bool:
+    """'1.0.0-beta' -> True, '1.0.0' -> False."""
+    return bool(_PRERELEASE_SUFFIX.match(version.strip()))
+
+
 def _headers() -> dict:
     headers = {"Accept": "application/vnd.github+json"}
     token = os.environ.get("VAULTSOFT_HUB_GH_TOKEN")
@@ -98,10 +110,12 @@ def fetch_latest_release(
         resp = requests.get(url, headers=_headers(), timeout=REQUEST_TIMEOUT)
         if resp.status_code == 404:
             raise GitHubApiError(f"{repo} has no published releases yet.")
+        if resp.status_code in (403, 429) and resp.headers.get("X-RateLimit-Remaining") == "0":
+            raise GitHubApiError("GitHub's hourly limit for update checks is used up. Try again later.")
         resp.raise_for_status()
         data = resp.json()
     except (requests.ConnectionError, requests.Timeout) as exc:
-        raise GitHubApiError("Couldn't reach GitHub. Check your internet connection.") from exc
+        raise GitHubOfflineError("Couldn't reach GitHub. Check your internet connection.") from exc
     except (requests.RequestException, ValueError) as exc:
         raise GitHubApiError(f"Could not reach GitHub for {repo}: {exc}") from exc
 
@@ -122,4 +136,5 @@ def fetch_latest_release(
         download_url=asset["browser_download_url"],
         asset_name=asset["name"],
         published_at=data.get("published_at", ""),
+        prerelease=bool(data.get("prerelease")) or is_prerelease_version(normalize_version(tag_name)),
     )

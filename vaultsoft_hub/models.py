@@ -18,6 +18,7 @@ class AppEntry:
     executable_hint: str = ""
     badge: str = ""  # "Free", "Free trial", ...
     mode: str = "install"  # "install" from GitHub Releases, or "link" = just open homepage
+    icon: str = ""  # file name in vaultsoft_hub/icons, from apps.json "icon"
 
 
 @dataclass
@@ -29,6 +30,7 @@ class ReleaseInfo:
     download_url: str
     asset_name: str
     published_at: str = ""
+    prerelease: bool = False
 
 
 @dataclass
@@ -52,5 +54,6 @@ class CrossPromo:
 class Manifest:
     apps: list[AppEntry] = field(default_factory=list)
     cross_promo: CrossPromo = field(default_factory=CrossPromo)
+    categories: list[str] = field(default_factory=list)  # display order, as on the website
     source: str = "live"  # "live", "saved" (last good copy on this PC) or "bundled" (in the exe)
     saved_at: str = ""  # when the saved copy was fetched, e.g. "27 Sep 2026"

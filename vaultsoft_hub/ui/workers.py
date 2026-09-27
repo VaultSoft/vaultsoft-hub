@@ -7,7 +7,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from .. import self_update
 from ..app_list import load_app_list
-from ..github_api import GitHubApiError, fetch_latest_release
+from ..github_api import GitHubApiError, GitHubOfflineError, fetch_latest_release
 from ..installer import InstallError, install_or_update
 from ..models import AppEntry, Manifest, ReleaseInfo
 from ..state import StateStore
@@ -34,7 +34,7 @@ class ReleaseCheckWorker(QThread):
     """Resolves the latest release for one app."""
 
     resolved = pyqtSignal(str, object)  # app_id, ReleaseInfo
-    failed = pyqtSignal(str, str)  # app_id, message
+    failed = pyqtSignal(str, str, bool)  # app_id, message, offline
 
     def __init__(self, app: AppEntry, parent=None):
         super().__init__(parent)
@@ -46,7 +46,7 @@ class ReleaseCheckWorker(QThread):
                 self.app.repo, self.app.executable_hint, include_prereleases=True
             )
         except GitHubApiError as exc:
-            self.failed.emit(self.app.id, str(exc))
+            self.failed.emit(self.app.id, str(exc), isinstance(exc, GitHubOfflineError))
             return
         self.resolved.emit(self.app.id, release)
 

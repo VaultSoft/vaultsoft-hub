@@ -67,6 +67,7 @@ def parse_app_list(data: dict) -> Manifest:
                 executable_hint=hub.get("exe", "") or "",
                 badge=a.get("badge", ""),
                 mode=mode,
+                icon=str(a.get("icon", "") or "").replace("\\", "/").rsplit("/", 1)[-1],
             )
         )
     promo = data.get("hub_promo")
@@ -77,7 +78,12 @@ def parse_app_list(data: dict) -> Manifest:
         text=promo.get("text", "") or "",
         url=promo.get("url", "") or "",
     )
-    return Manifest(apps=apps, cross_promo=cross_promo)
+    # Same order as the website: the "categories" list, then any others as they appear.
+    categories = []
+    for c in list(data.get("categories") or []) + [a.category for a in apps]:
+        if isinstance(c, str) and c and c not in categories:
+            categories.append(c)
+    return Manifest(apps=apps, cross_promo=cross_promo, categories=categories)
 
 
 def _parse_text(text: str) -> Manifest:

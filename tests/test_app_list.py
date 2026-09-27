@@ -111,6 +111,17 @@ class HubSettingsTests(unittest.TestCase):
         self.assertEqual((app.mode, app.executable_hint), ("install", ""))
 
 
+class CategoryAndIconTests(unittest.TestCase):
+    def test_categories_follow_the_site_order_then_new_ones(self):
+        data = {"categories": ["Network", "System & PC"], "apps": SAMPLE["apps"] + [
+            dict(SAMPLE["apps"][0], id="x", category="Brand New")]}
+        self.assertEqual(parse_app_list(data).categories, ["Network", "System & PC", "Brand New"])
+
+    def test_icon_is_reduced_to_a_file_name(self):
+        self.assertEqual(parse_app_list(SAMPLE).apps[0].icon, "pulsemonitor.svg")
+        self.assertEqual(parse_app_list(SAMPLE).apps[1].icon, "")
+
+
 class FetchAppListTests(unittest.TestCase):
     @patch("vaultsoft_hub.app_list.requests.get")
     def test_fetches_and_parses(self, mock_get):
