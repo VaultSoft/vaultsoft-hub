@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .. import MANIFEST_URL, __version__
+from .. import APPS_URL, __version__
 from ..github_api import is_newer
 from ..installer import InstallError, launch
 from ..models import AppEntry, Manifest, ReleaseInfo
@@ -92,7 +92,7 @@ class MainWindow(QMainWindow):
     def _start_manifest_load(self) -> None:
         self.status_line.setText("Loading your apps…")
         self.refresh_button.setEnabled(False)
-        worker = ManifestWorker(MANIFEST_URL)
+        worker = ManifestWorker(APPS_URL)
         worker.succeeded.connect(self._on_manifest_loaded)
         worker.failed.connect(self._on_manifest_failed)
         worker.finished.connect(lambda: self._forget_thread(worker))

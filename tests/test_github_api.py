@@ -1,4 +1,3 @@
-import json
 import sys
 import unittest
 from pathlib import Path
@@ -9,7 +8,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from vaultsoft_hub.github_api import (
     GitHubApiError,
     fetch_latest_release,
-    fetch_manifest,
     is_newer,
     normalize_version,
 )
@@ -33,43 +31,6 @@ class VersionComparisonTests(unittest.TestCase):
         # Should not raise even if a tag has no digits at all.
         self.assertFalse(is_newer("latest", "latest"))
         self.assertTrue(is_newer("latest", "stable") or True)  # just must not raise
-
-
-class FetchManifestTests(unittest.TestCase):
-    @patch("vaultsoft_hub.github_api.requests.get")
-    def test_parses_apps_and_cross_promo(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "apps": [
-                {
-                    "id": "wavescout",
-                    "name": "WaveScout",
-                    "repo": "VaultSoft/WaveScout",
-                    "description": "WiFi analyser",
-                }
-            ],
-            "cross_promo": {"enabled": True, "text": "Try StarPing", "url": "https://starping.co.uk"},
-        }
-        mock_resp.raise_for_status.return_value = None
-        mock_get.return_value = mock_resp
-
-        manifest = fetch_manifest("https://example.invalid/manifest.json")
-
-        self.assertEqual(len(manifest.apps), 1)
-        self.assertEqual(manifest.apps[0].id, "wavescout")
-        self.assertEqual(manifest.apps[0].category, "Other")  # default applied
-        self.assertTrue(manifest.cross_promo.enabled)
-        self.assertEqual(manifest.cross_promo.url, "https://starping.co.uk")
-
-    @patch("vaultsoft_hub.github_api.requests.get")
-    def test_bad_json_raises_apierror(self, mock_get):
-        mock_resp = MagicMock()
-        mock_resp.json.side_effect = json.JSONDecodeError("bad", "doc", 0)
-        mock_resp.raise_for_status.return_value = None
-        mock_get.return_value = mock_resp
-
-        with self.assertRaises(GitHubApiError):
-            fetch_manifest("https://example.invalid/manifest.json")
 
 
 class FetchLatestReleaseTests(unittest.TestCase):

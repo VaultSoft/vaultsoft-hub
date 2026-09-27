@@ -1,0 +1,93 @@
+import json
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from vaultsoft_hub.app_list import fetch_app_list, parse_app_list
+from vaultsoft_hub.github_api import GitHubApiError
+
+# Shaped like the real https://vaultsoft.co.uk/apps.json.
+SAMPLE = {
+    "categories": ["System & PC", "Network"],
+    "apps": [
+        {
+            "id": "pulsemonitor",
+            "name": "PulseMonitor",
+            "description": "Real-time monitoring.",
+            "category": "System & PC",
+            "badge": "Free",
+            "link": "https://vaultsoft.github.io/PulseMonitor/",
+            "repo": "VaultSoft/PulseMonitor",
+            "released": "2026-04-16",
+            "icon": "icons/pulsemonitor.svg",
+            "featured": 2,
+        },
+        {
+            "id": "wavescout",
+            "name": "WaveScout",
+            "description": "Wi-Fi analyser.",
+            "category": "Network",
+            "badge": "Free",
+            "link": "https://vaultsoft.github.io/WaveScout/",
+            "repo": "VaultSoft/WaveScout",
+            "released": "2026-06-05",
+            "some_future_field": {"anything": True},
+        },
+    ],
+}
+
+
+def _response(data=None, json_error=False):
+    resp = MagicMock()
+    resp.raise_for_status.return_value = None
+    if json_error:
+        resp.json.side_effect = json.JSONDecodeError("bad", "doc", 0)
+    else:
+        resp.json.return_value = data
+    return resp
+
+
+class ParseAppListTests(unittest.TestCase):
+    def test_maps_site_fields_onto_apps(self):
+        manifest = parse_app_list(SAMPLE)
+        self.assertEqual([a.id for a in manifest.apps], ["pulsemonitor", "wavescout"])
+        pm = manifest.apps[0]
+        self.assertEqual(pm.name, "PulseMonitor")
+        self.assertEqual(pm.repo, "VaultSoft/PulseMonitor")
+        self.assertEqual(pm.category, "System & PC")
+        self.assertEqual(pm.homepage, "https://vaultsoft.github.io/PulseMonitor/")  # from "link"
+        self.assertEqual(pm.badge, "Free")
+
+    def test_unknown_fields_are_ignored(self):
+        # apps.json only ever gains fields; old Hubs must shrug them off.
+        self.assertEqual(parse_app_list(SAMPLE).apps[1].id, "wavescout")
+
+    def test_entries_without_id_or_name_are_skipped(self):
+        data = {"apps": [{"name": "NoId"}, {"id": "noname"}, "junk", SAMPLE["apps"][0]]}
+        self.assertEqual([a.id for a in parse_app_list(data).apps], ["pulsemonitor"])
+
+    def test_wrong_shape_raises(self):
+        for bad in ([], {"apps": {}}, {"nope": []}):
+            with self.assertRaises(GitHubApiError):
+                parse_app_list(bad)
+
+
+class FetchAppListTests(unittest.TestCase):
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_fetches_and_parses(self, mock_get):
+        mock_get.return_value = _response(SAMPLE)
+        manifest = fetch_app_list("https://example.invalid/apps.json")
+        self.assertEqual(len(manifest.apps), 2)
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_bad_json_raises_apierror(self, mock_get):
+        mock_get.return_value = _response(json_error=True)
+        with self.assertRaises(GitHubApiError):
+            fetch_app_list("https://example.invalid/apps.json")
+
+
+if __name__ == "__main__":
+    unittest.main()

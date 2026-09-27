@@ -7,7 +7,7 @@ from typing import Optional
 
 @dataclass
 class AppEntry:
-    """One app as declared in manifest.json."""
+    """One app, as listed in the site's apps.json."""
 
     id: str
     name: str
@@ -16,6 +16,7 @@ class AppEntry:
     description: str
     homepage: str = ""
     executable_hint: str = ""
+    badge: str = ""  # "Free", "Free trial", ...
 
 
 @dataclass

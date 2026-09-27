@@ -3,8 +3,7 @@ __version__ = "1.0.2"
 # The GitHub repo this Hub itself is published from, used for self-update checks.
 SELF_REPO = "VaultSoft/vaultsoft-hub"
 
-# Where the manifest of apps is fetched from. Pointing at "main" means Joshua can
-# add/remove apps by editing manifest.json in the repo — no Hub rebuild required.
-MANIFEST_URL = (
-    "https://raw.githubusercontent.com/VaultSoft/vaultsoft-hub/main/manifest.json"
-)
+# The app list: the same apps.json that builds the vaultsoft.co.uk homepage, so
+# adding an app to the site adds it to every Hub too, with no Hub rebuild.
+# (manifest.json in this repo is only still there for v1.0.x Hubs.)
+APPS_URL = "https://vaultsoft.co.uk/apps.json"

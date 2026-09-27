@@ -1,4 +1,4 @@
-"""Talks to the GitHub REST API to resolve manifest + latest releases.
+"""Talks to the GitHub REST API to resolve each app's latest release.
 
 Deliberately dependency-light: only `requests`. No GitHub token is required for
 the request volume a single user's Hub generates (60 unauthenticated
@@ -8,14 +8,13 @@ VAULTSOFT_HUB_GH_TOKEN environment variable to a personal access token
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 from typing import Optional
 
 import requests
 
-from .models import AppEntry, CrossPromo, Manifest, ReleaseInfo
+from .models import ReleaseInfo
 
 API_ROOT = "https://api.github.com"
 REQUEST_TIMEOUT = 15
@@ -31,36 +30,6 @@ def _headers() -> dict:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
-
-
-def fetch_manifest(url: str) -> Manifest:
-    """Fetch and parse manifest.json (app list + cross-promo block)."""
-    try:
-        resp = requests.get(url, timeout=REQUEST_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
-    except (requests.RequestException, json.JSONDecodeError) as exc:
-        raise GitHubApiError(f"Could not load manifest from {url}: {exc}") from exc
-
-    apps = [
-        AppEntry(
-            id=a["id"],
-            name=a["name"],
-            repo=a["repo"],
-            category=a.get("category", "Other"),
-            description=a.get("description", ""),
-            homepage=a.get("homepage", ""),
-            executable_hint=a.get("executable_hint", ""),
-        )
-        for a in data.get("apps", [])
-    ]
-    promo_data = data.get("cross_promo", {})
-    cross_promo = CrossPromo(
-        enabled=bool(promo_data.get("enabled", False)),
-        text=promo_data.get("text", ""),
-        url=promo_data.get("url", ""),
-    )
-    return Manifest(apps=apps, cross_promo=cross_promo)
 
 
 def normalize_version(tag_name: str) -> str:

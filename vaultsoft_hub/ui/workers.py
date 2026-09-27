@@ -6,7 +6,8 @@ from typing import Optional
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from .. import self_update
-from ..github_api import GitHubApiError, fetch_latest_release, fetch_manifest
+from ..app_list import fetch_app_list
+from ..github_api import GitHubApiError, fetch_latest_release
 from ..installer import InstallError, install_or_update
 from ..models import AppEntry, Manifest, ReleaseInfo
 from ..state import StateStore
@@ -16,13 +17,13 @@ class ManifestWorker(QThread):
     succeeded = pyqtSignal(object)  # Manifest
     failed = pyqtSignal(str)
 
-    def __init__(self, manifest_url: str, parent=None):
+    def __init__(self, url: str, parent=None):
         super().__init__(parent)
-        self.manifest_url = manifest_url
+        self.url = url
 
     def run(self) -> None:
         try:
-            manifest = fetch_manifest(self.manifest_url)
+            manifest = fetch_app_list(self.url)
         except GitHubApiError as exc:
             self.failed.emit(str(exc))
             return
