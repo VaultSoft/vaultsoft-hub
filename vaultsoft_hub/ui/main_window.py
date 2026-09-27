@@ -105,7 +105,12 @@ class MainWindow(QMainWindow):
 
     def _on_manifest_loaded(self, manifest: Manifest) -> None:
         self.refresh_button.setEnabled(True)
-        self.status_line.setText(f"{len(manifest.apps)} apps · checking for updates…")
+        count = f"{len(manifest.apps)} apps"
+        if manifest.source == "saved":
+            count += f" (couldn't reach vaultsoft.co.uk, so using the list saved on {manifest.saved_at})"
+        elif manifest.source == "bundled":
+            count += " (couldn't reach vaultsoft.co.uk, so using the list built into this Hub)"
+        self.status_line.setText(f"{count} · checking for updates…")
         self._render_cards(manifest.apps)
         self._configure_promo(manifest)
         for app in manifest.apps:

@@ -10,17 +10,28 @@ ignores:
     {"mode": "link"}              show the app, but only open its page
     false                         don't list it in the Hub
     missing / {}                  install from `repo`, guess the exe
+
+If the live file can't be loaded, the Hub falls back to the last good copy it
+saved, then to the copy built into the exe, so it still works offline.
 """
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
 
 import requests
 
 from .github_api import GitHubApiError
 from .models import AppEntry, Manifest
+from .state import data_root
 
 REQUEST_TIMEOUT = 15
+CACHE_FILENAME = "apps.json"
+# Snapshot of the site's apps.json at build time. PyInstaller bundles it next
+# to this module (see build.spec), so the path works frozen and from source.
+BUNDLED_PATH = Path(__file__).resolve().parent / "bundled_apps.json"
 
 
 def parse_app_list(data: dict) -> Manifest:
@@ -58,12 +69,61 @@ def parse_app_list(data: dict) -> Manifest:
     return Manifest(apps=apps)
 
 
-def fetch_app_list(url: str) -> Manifest:
-    """Download and parse apps.json."""
+def _parse_text(text: str) -> Manifest:
+    try:
+        data = json.loads(text)
+    except ValueError as exc:
+        raise GitHubApiError(f"The app list is not valid JSON: {exc}") from exc
+    return parse_app_list(data)
+
+
+def _download(url: str) -> str:
     try:
         resp = requests.get(url, timeout=REQUEST_TIMEOUT)
         resp.raise_for_status()
-        data = resp.json()
-    except (requests.RequestException, ValueError) as exc:
+        resp.encoding = "utf-8"
+        return resp.text
+    except requests.RequestException as exc:
         raise GitHubApiError(f"Could not load the app list from {url}: {exc}") from exc
-    return parse_app_list(data)
+
+
+def fetch_app_list(url: str) -> Manifest:
+    """Download and parse apps.json, with no fallback."""
+    return _parse_text(_download(url))
+
+
+def load_app_list(
+    url: str,
+    cache_path: Optional[Path] = None,
+    bundled_path: Path = BUNDLED_PATH,
+) -> Manifest:
+    """The live list if possible, else the saved copy, else the bundled one.
+
+    A live list that parses is saved over the old copy. If all three fail, the
+    live error is raised, since that's the one worth showing.
+    """
+    cache_path = cache_path or data_root() / CACHE_FILENAME
+    try:
+        text = _download(url)
+        manifest = _parse_text(text)
+    except GitHubApiError as live_error:
+        try:
+            manifest = _parse_text(cache_path.read_text(encoding="utf-8"))
+            saved = datetime.fromtimestamp(cache_path.stat().st_mtime)
+            manifest.source = "saved"
+            manifest.saved_at = f"{saved.day} {saved:%b %Y}"
+            return manifest
+        except (OSError, GitHubApiError):
+            pass
+        try:
+            manifest = _parse_text(bundled_path.read_text(encoding="utf-8"))
+            manifest.source = "bundled"
+            return manifest
+        except (OSError, GitHubApiError):
+            raise live_error from None
+
+    try:
+        cache_path.write_text(text, encoding="utf-8")
+    except OSError:
+        pass  # Not being able to save a copy mustn't stop the Hub working now.
+    return manifest

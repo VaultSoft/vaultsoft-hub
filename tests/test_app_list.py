@@ -1,12 +1,15 @@
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from vaultsoft_hub.app_list import fetch_app_list, parse_app_list
+from vaultsoft_hub.app_list import BUNDLED_PATH, fetch_app_list, load_app_list, parse_app_list
 from vaultsoft_hub.github_api import GitHubApiError
 
 # Shaped like the real https://vaultsoft.co.uk/apps.json.
@@ -40,13 +43,10 @@ SAMPLE = {
 }
 
 
-def _response(data=None, json_error=False):
+def _response(data=None, text=None):
     resp = MagicMock()
     resp.raise_for_status.return_value = None
-    if json_error:
-        resp.json.side_effect = json.JSONDecodeError("bad", "doc", 0)
-    else:
-        resp.json.return_value = data
+    resp.text = text if text is not None else json.dumps(data)
     return resp
 
 
@@ -120,9 +120,75 @@ class FetchAppListTests(unittest.TestCase):
 
     @patch("vaultsoft_hub.app_list.requests.get")
     def test_bad_json_raises_apierror(self, mock_get):
-        mock_get.return_value = _response(json_error=True)
+        mock_get.return_value = _response(text="{not json")
         with self.assertRaises(GitHubApiError):
             fetch_app_list("https://example.invalid/apps.json")
+
+
+OFFLINE = requests.ConnectionError("no network")
+
+
+class LoadAppListFallbackTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+        self.cache = self.dir / "apps.json"
+        self.bundled = self.dir / "bundled.json"
+        self.bundled.write_text(json.dumps({"apps": [SAMPLE["apps"][1]]}), encoding="utf-8")
+
+    def _load(self):
+        return load_app_list("https://example.invalid/apps.json", self.cache, self.bundled)
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_live_list_is_used_and_saved(self, mock_get):
+        mock_get.return_value = _response(SAMPLE)
+        manifest = self._load()
+        self.assertEqual(manifest.source, "live")
+        self.assertEqual(len(manifest.apps), 2)
+        self.assertEqual(json.loads(self.cache.read_text(encoding="utf-8")), SAMPLE)
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_offline_uses_the_saved_copy(self, mock_get):
+        self.cache.write_text(json.dumps(SAMPLE), encoding="utf-8")
+        mock_get.side_effect = OFFLINE
+        manifest = self._load()
+        self.assertEqual(manifest.source, "saved")
+        self.assertEqual(len(manifest.apps), 2)
+        self.assertRegex(manifest.saved_at, r"^\d{1,2} [A-Z][a-z]{2} \d{4}$")
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_offline_with_no_saved_copy_uses_the_bundled_one(self, mock_get):
+        mock_get.side_effect = OFFLINE
+        manifest = self._load()
+        self.assertEqual(manifest.source, "bundled")
+        self.assertEqual([a.id for a in manifest.apps], ["wavescout"])
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_corrupt_saved_copy_falls_through_to_bundled(self, mock_get):
+        self.cache.write_text("{truncated", encoding="utf-8")
+        mock_get.side_effect = OFFLINE
+        self.assertEqual(self._load().source, "bundled")
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_bad_live_list_is_not_saved_over_a_good_copy(self, mock_get):
+        self.cache.write_text(json.dumps(SAMPLE), encoding="utf-8")
+        mock_get.return_value = _response(text="<html>oops</html>")
+        self.assertEqual(self._load().source, "saved")
+        self.assertEqual(json.loads(self.cache.read_text(encoding="utf-8")), SAMPLE)
+
+    @patch("vaultsoft_hub.app_list.requests.get")
+    def test_nothing_available_raises_the_live_error(self, mock_get):
+        self.bundled.unlink()
+        mock_get.side_effect = OFFLINE
+        with self.assertRaisesRegex(GitHubApiError, "no network"):
+            self._load()
+
+    def test_the_real_bundled_copy_parses(self):
+        manifest = parse_app_list(json.loads(BUNDLED_PATH.read_text(encoding="utf-8")))
+        ids = [a.id for a in manifest.apps]
+        self.assertIn("pulsemonitor", ids)
+        self.assertNotIn("vaultsoft-hub", ids)
 
 
 if __name__ == "__main__":

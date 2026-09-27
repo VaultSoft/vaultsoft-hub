@@ -7,7 +7,8 @@ a = Analysis(
     ["run_app.py"],
     pathex=[],
     binaries=[],
-    datas=[("icon.ico", ".")],
+    # bundled_apps.json must land next to app_list.py: the offline fallback list.
+    datas=[("icon.ico", "."), ("vaultsoft_hub/bundled_apps.json", "vaultsoft_hub")],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
