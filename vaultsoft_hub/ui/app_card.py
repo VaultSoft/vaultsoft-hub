@@ -22,6 +22,7 @@ class AppCard(QFrame):
     update_requested = pyqtSignal(str)
     launch_requested = pyqtSignal(str)
     open_page_requested = pyqtSignal(str)
+    retry_requested = pyqtSignal(str)
 
     def __init__(self, app: AppEntry, parent=None):
         super().__init__(parent)
@@ -48,6 +49,8 @@ class AppCard(QFrame):
 
         self.status_label = QLabel("Checking…")
         self.status_label.setObjectName("AppStatus")
+        # Errors can be long; unwrapped they'd widen the card past the window.
+        self.status_label.setWordWrap(True)
         text_col.addWidget(self.status_label)
 
         self.progress = QProgressBar()
@@ -74,6 +77,8 @@ class AppCard(QFrame):
             self.launch_requested.emit(self.app.id)
         elif self._mode == "link":
             self.open_page_requested.emit(self.app.id)
+        elif self._mode == "error":
+            self.retry_requested.emit(self.app.id)
 
     def set_checking(self) -> None:
         self._mode = "checking"

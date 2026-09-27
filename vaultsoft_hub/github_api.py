@@ -100,6 +100,8 @@ def fetch_latest_release(
             raise GitHubApiError(f"{repo} has no published releases yet.")
         resp.raise_for_status()
         data = resp.json()
+    except (requests.ConnectionError, requests.Timeout) as exc:
+        raise GitHubApiError("Couldn't reach GitHub. Check your internet connection.") from exc
     except (requests.RequestException, ValueError) as exc:
         raise GitHubApiError(f"Could not reach GitHub for {repo}: {exc}") from exc
 

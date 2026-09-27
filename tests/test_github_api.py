@@ -86,6 +86,16 @@ class FetchLatestReleaseTests(unittest.TestCase):
             fetch_latest_release("VaultSoft/Empty")
 
 
+class OfflineMessageTests(unittest.TestCase):
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_offline_gives_a_short_readable_error(self, mock_get):
+        import requests
+
+        mock_get.side_effect = requests.ConnectionError("HTTPSConnectionPool(host='api.github.com'...) very long")
+        with self.assertRaisesRegex(GitHubApiError, r"^Couldn't reach GitHub\. Check your internet connection\.$"):
+            fetch_latest_release("VaultSoft/WaveScout", include_prereleases=True)
+
+
 class PrereleaseTests(unittest.TestCase):
     def _release(self, tag, prerelease=False, draft=False):
         return {

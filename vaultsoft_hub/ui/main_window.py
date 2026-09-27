@@ -133,6 +133,7 @@ class MainWindow(QMainWindow):
             card.update_requested.connect(self._on_install_clicked)
             card.launch_requested.connect(self._on_launch_clicked)
             card.open_page_requested.connect(self._on_open_page_clicked)
+            card.retry_requested.connect(self._on_retry_clicked)
             self.list_layout.addWidget(card)
             self.cards[app.id] = card
             self._apply_known_state(app, card)
@@ -231,6 +232,13 @@ class MainWindow(QMainWindow):
             launch(installed)
         except InstallError as exc:
             QMessageBox.warning(self, "Couldn't launch", str(exc))
+
+    def _on_retry_clicked(self, app_id: str) -> None:
+        app = self._find_app(app_id)
+        card = self.cards.get(app_id)
+        if app and card:
+            card.set_checking()
+            self._check_release(app)
 
     def _on_open_page_clicked(self, app_id: str) -> None:
         app = self._find_app(app_id)
