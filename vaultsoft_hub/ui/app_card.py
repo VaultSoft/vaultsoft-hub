@@ -21,6 +21,7 @@ class AppCard(QFrame):
     install_requested = pyqtSignal(str)  # app_id
     update_requested = pyqtSignal(str)
     launch_requested = pyqtSignal(str)
+    open_page_requested = pyqtSignal(str)
 
     def __init__(self, app: AppEntry, parent=None):
         super().__init__(parent)
@@ -71,6 +72,8 @@ class AppCard(QFrame):
             self.update_requested.emit(self.app.id)
         elif self._mode == "launch":
             self.launch_requested.emit(self.app.id)
+        elif self._mode == "link":
+            self.open_page_requested.emit(self.app.id)
 
     def set_checking(self) -> None:
         self._mode = "checking"
@@ -78,6 +81,14 @@ class AppCard(QFrame):
         self.status_label.setProperty("state", "")
         self.action_button.setText("...")
         self.action_button.setEnabled(False)
+
+    def set_link(self) -> None:
+        """Apps the Hub doesn't install (e.g. ScribeVault): just point at the page."""
+        self._mode = "link"
+        self.status_label.setText(f"{self.app.badge} · opens in your browser" if self.app.badge else "Opens in your browser")
+        self.status_label.setProperty("state", "")
+        self.action_button.setText("Open page")
+        self.action_button.setEnabled(True)
 
     def set_error(self, message: str) -> None:
         self._mode = "error"

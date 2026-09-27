@@ -75,6 +75,42 @@ class ParseAppListTests(unittest.TestCase):
                 parse_app_list(bad)
 
 
+class HubSettingsTests(unittest.TestCase):
+    def _one(self, **fields):
+        app = dict(SAMPLE["apps"][0], **fields)
+        return parse_app_list({"apps": [app]}).apps
+
+    def test_exe_becomes_the_executable_hint(self):
+        (app,) = self._one(hub={"exe": "PulseMonitor.exe"})
+        self.assertEqual(app.mode, "install")
+        self.assertEqual(app.executable_hint, "PulseMonitor.exe")
+
+    def test_missing_hub_block_means_install_and_guess_the_exe(self):
+        (app,) = self._one()
+        self.assertEqual(app.mode, "install")
+        self.assertEqual(app.executable_hint, "")
+
+    def test_link_mode(self):
+        (app,) = self._one(id="scribevault", badge="Free trial", hub={"mode": "link"})
+        self.assertEqual(app.mode, "link")
+        self.assertEqual(app.badge, "Free trial")
+        self.assertEqual(app.homepage, "https://vaultsoft.github.io/PulseMonitor/")
+
+    def test_hub_false_is_not_listed(self):
+        self.assertEqual(self._one(hub=False), [])
+
+    def test_no_repo_falls_back_to_link_mode(self):
+        (app,) = self._one(repo="")
+        self.assertEqual(app.mode, "link")
+
+    def test_no_repo_and_no_link_is_skipped(self):
+        self.assertEqual(self._one(repo="", link=""), [])
+
+    def test_unexpected_hub_value_is_treated_as_missing(self):
+        (app,) = self._one(hub="yes please")
+        self.assertEqual((app.mode, app.executable_hint), ("install", ""))
+
+
 class FetchAppListTests(unittest.TestCase):
     @patch("vaultsoft_hub.app_list.requests.get")
     def test_fetches_and_parses(self, mock_get):

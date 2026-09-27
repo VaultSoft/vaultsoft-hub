@@ -109,7 +109,8 @@ class MainWindow(QMainWindow):
         self._render_cards(manifest.apps)
         self._configure_promo(manifest)
         for app in manifest.apps:
-            self._check_release(app)
+            if app.mode == "install":
+                self._check_release(app)
 
     def _render_cards(self, apps: list[AppEntry]) -> None:
         # Clear existing cards + the trailing stretch (simple approach - fine
@@ -126,12 +127,16 @@ class MainWindow(QMainWindow):
             card.install_requested.connect(self._on_install_clicked)
             card.update_requested.connect(self._on_install_clicked)
             card.launch_requested.connect(self._on_launch_clicked)
+            card.open_page_requested.connect(self._on_open_page_clicked)
             self.list_layout.addWidget(card)
             self.cards[app.id] = card
             self._apply_known_state(app, card)
         self.list_layout.addStretch(1)
 
     def _apply_known_state(self, app: AppEntry, card: AppCard) -> None:
+        if app.mode == "link":
+            card.set_link()
+            return
         installed = self.state.get(app.id)
         if installed:
             card.set_up_to_date(installed.version)  # provisional until release check lands
@@ -221,6 +226,11 @@ class MainWindow(QMainWindow):
             launch(installed)
         except InstallError as exc:
             QMessageBox.warning(self, "Couldn't launch", str(exc))
+
+    def _on_open_page_clicked(self, app_id: str) -> None:
+        app = self._find_app(app_id)
+        if app and app.homepage:
+            webbrowser.open(app.homepage)
 
     # ---- self-update ---------------------------------------------------------
 

@@ -17,6 +17,7 @@ class AppEntry:
     homepage: str = ""
     executable_hint: str = ""
     badge: str = ""  # "Free", "Free trial", ...
+    mode: str = "install"  # "install" from GitHub Releases, or "link" = just open homepage
 
 
 @dataclass
