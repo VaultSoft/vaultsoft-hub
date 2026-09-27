@@ -89,6 +89,35 @@ class CardStateTests(unittest.TestCase):
         card.action_button.click()
         self.assertEqual(fired, [("retry", "wavescout"), ("launch", "wavescout")])
 
+    def test_unreleased_app_is_coming_soon_not_an_error(self):
+        card = self._card(id="fileflow", name="FileFlow", repo="VaultSoft/FileFlow", homepage="", icon="fileflow.svg")
+        card.set_unreleased()
+        self.assertEqual(card.mode, "unreleased")
+        self.assertFalse(card.offline)
+        self.assertEqual(self._pills(card), [("soon", "Coming soon")])
+        self.assertEqual(card.status_label.text(), "Not released yet")
+        self.assertNotEqual(card.status_label.property("tone"), "error")
+        self.assertEqual((card.action_button.text(), card.action_button.isEnabled()), ("Soon", False))
+
+    def test_unreleased_app_with_a_page_opens_it(self):
+        card = self._card(id="fileflow", name="FileFlow", homepage="https://example.invalid/fileflow")
+        fired = []
+        card.open_page_requested.connect(fired.append)
+        card.set_unreleased()
+        self.assertEqual((card.action_button.text(), card.action_button.objectName()), ("Open page", "Outline"))
+        card.action_button.click()
+        self.assertEqual(fired, ["fileflow"])
+
+    def test_unreleased_but_installed_still_launches(self):
+        card = self._card(id="fileflow", name="FileFlow")
+        fired = []
+        card.launch_requested.connect(fired.append)
+        card.set_unreleased("0.9.0")
+        self.assertEqual((card.action_button.text(), card.mode), ("Launch", "launch"))
+        self.assertIn("v0.9.0", card.status_label.text())
+        card.action_button.click()
+        self.assertEqual(fired, ["fileflow"])
+
     def test_narrow_card_moves_the_button_under_the_text(self):
         card = self._card()
         card.resize(600, 120)
@@ -116,6 +145,11 @@ class IconTests(unittest.TestCase):
 
         for app in parse_app_list(json.loads(BUNDLED_PATH.read_text(encoding="utf-8"))).apps:
             self.assertTrue((ICON_DIR / app.icon).is_file(), f"{app.id}: {app.icon} missing")
+
+    def test_fileflow_icon_is_a_real_svg_not_the_fallback(self):
+        from vaultsoft_hub.ui.icons import ICON_DIR, _svg_pixmap
+
+        self.assertIsNotNone(_svg_pixmap(ICON_DIR / "fileflow.svg", 24, 1.0))
 
     def test_unknown_app_gets_a_drawn_fallback(self):
         from vaultsoft_hub.ui.icons import app_icon

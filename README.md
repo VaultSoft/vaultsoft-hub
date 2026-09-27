@@ -71,6 +71,63 @@ push the site change and every Hub out there sees the new app on its next
 refresh. (`bundled_apps.json` is only the offline fallback; refresh it from
 the site before a Hub release.)
 
+An app can go into `apps.json` before its first GitHub release. Until
+there is one, a Hub newer than v1.1.1 shows its card as **Coming soon** /
+"Not released yet" (with an "Open page" button if it has a `link`),
+rather than an error with a Retry button. A copy the Hub installed earlier still launches.
+
+The icon comes from `vaultsoft_hub/icons/<file>.svg`, named by the entry's
+`icon`. The website's `icons/` folder holds the same files, so copy a new
+app's SVG in both places. An app with no icon file gets a drawn initial.
+
+### FileFlow (ready, waiting for its first release)
+
+The Hub side of FileFlow is done: its icon is `vaultsoft_hub/icons/fileflow.svg`,
+and the "Coming soon" state covers the time before its release. Nothing
+lists FileFlow yet, because the live app list is the site's `apps.json`.
+`bundled_apps.json` is deliberately left alone: it must stay a copy of the
+site, not get ahead of it.
+
+When FileFlow is ready to appear, add this to the site's `apps.json`
+(e.g. after SweptPC), copy `fileflow.svg` into the site's `icons/`, and
+rebuild the site:
+
+```json
+{
+  "id": "fileflow",
+  "name": "FileFlow",
+  "description": "Preview, organise and safely undo file moves. See every move before it happens; nothing is ever overwritten or deleted.",
+  "category": "System & PC",
+  "badge": "Free",
+  "link": "TODO: FileFlow's page URL",
+  "repo": "VaultSoft/FileFlow",
+  "released": "TODO: YYYY-MM-DD",
+  "icon": "icons/fileflow.svg",
+  "hub": {"exe": "FileFlow.exe"}
+}
+```
+
+Before or with that change:
+
+- [ ] Create the public repo `VaultSoft/FileFlow` (it doesn't exist yet;
+      if it gets another name, change `repo` above). It must be public:
+      the Hub reads releases anonymously.
+- [ ] Publish a release with `FileFlow_vX.Y.Z_Portable.zip` attached
+      (what FileFlow's `build.py` makes). The zip holds a `FileFlow/`
+      folder with `FileFlow.exe` and its DLLs. The Hub extracts the whole
+      zip, finds `FileFlow.exe` by the `hub.exe` name, and starts it from
+      that folder.
+- [ ] Fill in `link` (FileFlow's page) and `released`, and confirm `badge`.
+      There's no download URL to add: the Hub resolves it from the release.
+- [ ] Before the next Hub release, refresh `bundled_apps.json` from the site
+      as usual, which brings FileFlow into the offline copy too.
+
+Safest order: publish FileFlow's release first, then add it to `apps.json`.
+Every Hub then offers Install straight away. Listing it before the release
+only looks right in Hubs that have the Coming soon state. v1.1.1 and older
+would show "VaultSoft/FileFlow has no published releases yet." with a Retry
+button until the release exists.
+
 ### manifest.json is frozen
 
 `manifest.json` in this repo is what v1.0.x Hubs read. Leave it, and its

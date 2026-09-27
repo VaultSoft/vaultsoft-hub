@@ -106,6 +106,7 @@ QLabel#Pill {{
 {_pill("trial", ACCENT)}
 {_pill("badge", TEXT_SUB)}
 {_pill("offline", TEXT_SUB)}
+{_pill("soon", BLUE)}
 
 /* ---- buttons: Primary > Secondary > Outline > Subtle -------------------- */
 QPushButton {{

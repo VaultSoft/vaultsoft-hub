@@ -28,6 +28,10 @@ class GitHubOfflineError(GitHubApiError):
     """GitHub couldn't be reached at all (no connection, DNS, timeout)."""
 
 
+class GitHubNotReleasedError(GitHubApiError):
+    """The repo has no published release yet (or isn't public yet): the app is listed ahead of its launch."""
+
+
 _PRERELEASE_SUFFIX = re.compile(r"^\d+(?:\.\d+)*[-_.+]?[A-Za-z]")
 
 
@@ -109,7 +113,7 @@ def fetch_latest_release(
     try:
         resp = requests.get(url, headers=_headers(), timeout=REQUEST_TIMEOUT)
         if resp.status_code == 404:
-            raise GitHubApiError(f"{repo} has no published releases yet.")
+            raise GitHubNotReleasedError(f"{repo} has no published releases yet.")
         if resp.status_code in (403, 429) and resp.headers.get("X-RateLimit-Remaining") == "0":
             raise GitHubApiError("GitHub's hourly limit for update checks is used up. Try again later.")
         resp.raise_for_status()
@@ -122,7 +126,7 @@ def fetch_latest_release(
     if include_prereleases:
         published = [r for r in data if isinstance(r, dict) and not r.get("draft")]
         if not published:
-            raise GitHubApiError(f"{repo} has no published releases yet.")
+            raise GitHubNotReleasedError(f"{repo} has no published releases yet.")
         data = published[0]  # the API lists newest first
 
     asset = _pick_asset(data.get("assets", []), executable_hint)

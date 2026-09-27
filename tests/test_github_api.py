@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from vaultsoft_hub.github_api import (
     GitHubApiError,
+    GitHubNotReleasedError,
     GitHubOfflineError,
     is_prerelease_version,
     fetch_latest_release,
@@ -75,6 +76,17 @@ class FetchLatestReleaseTests(unittest.TestCase):
 
         with self.assertRaises(GitHubApiError):
             fetch_latest_release("VaultSoft/NoReleasesYet")
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_repo_without_releases_is_not_released_rather_than_failed(self, mock_get):
+        # An app listed ahead of its launch: 404 (no repo/release yet) or an empty list.
+        not_found = MagicMock(status_code=404)
+        empty = MagicMock(status_code=200, headers={})
+        empty.json.return_value = []
+        for resp, prereleases in ((not_found, False), (not_found, True), (empty, True)):
+            mock_get.return_value = resp
+            with self.assertRaises(GitHubNotReleasedError):
+                fetch_latest_release("VaultSoft/FileFlow", "FileFlow.exe", include_prereleases=prereleases)
 
     @patch("vaultsoft_hub.github_api.requests.get")
     def test_no_assets_raises_apierror(self, mock_get):

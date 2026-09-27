@@ -37,6 +37,18 @@ class FindExecutableTests(unittest.TestCase):
             found = installer.find_executable(root, executable_hint="WaveScout.exe")
             self.assertEqual(found.name, "WaveScout.exe")
 
+    def test_finds_hinted_exe_inside_a_folder_build(self):
+        # FileFlow's portable zip is FileFlow/FileFlow.exe plus its DLLs; launch() uses exe.parent as cwd.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            app = root / "FileFlow"
+            app.mkdir()
+            (app / "FileFlow.exe").write_bytes(b"stub")
+            (app / "python311.dll").write_bytes(b"stub")
+            (app / "VERSION").write_text("0.9.0")
+            found = installer.find_executable(root, executable_hint="FileFlow.exe")
+            self.assertEqual(found, app / "FileFlow.exe")
+
     def test_ignores_uninstaller_when_no_hint_matches(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

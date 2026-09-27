@@ -1,6 +1,7 @@
 """One app's card in the Hub: icon, name + status pills, description, a status
 line, and the single button whose label/behaviour changes with state
-(Install -> Update -> Launch, or Open page / Retry).
+(Install -> Update -> Launch, or Open page / Retry). An app listed before
+its first release shows "Coming soon" instead of an error.
 
 Button tiers: Launch/Update = Primary, Install = Secondary, Open page =
 Outline, Retry = Subtle. Status text is grey, or amber for an update, and is
@@ -106,7 +107,7 @@ class AppCard(QFrame):
 
     @property
     def mode(self) -> str:
-        """checking / install / update / launch / link / error"""
+        """checking / install / update / launch / link / unreleased / error"""
         return self._mode
 
     @property
@@ -139,6 +140,7 @@ class AppCard(QFrame):
             "update": self.update_requested,
             "launch": self.launch_requested,
             "link": self.open_page_requested,
+            "unreleased": self.open_page_requested,
             "error": self.retry_requested,
         }.get(self._mode)
         if signal is not None:
@@ -199,6 +201,22 @@ class AppCard(QFrame):
         self._set_pills(*([badge] if badge else []))
         self._set_status("Opens in your browser")
         self._set_button("Open page", "Outline")
+
+    def set_unreleased(self, installed_version: str | None = None) -> None:
+        """Listed ahead of its first GitHub release. A copy the Hub installed earlier still launches."""
+        if installed_version:
+            self._mode = "launch"
+            self._set_pills(("installed", "Installed ✓"))
+            self._set_status(f"v{installed_version} · no published release to check against")
+            self._set_button("Launch", "Primary")
+            return
+        self._mode = "unreleased"
+        self._set_pills(("soon", "Coming soon"))
+        self._set_status("Not released yet")
+        if self.app.homepage:
+            self._set_button("Open page", "Outline")
+        else:
+            self._set_button("Soon", "Subtle", enabled=False)
 
     def set_not_installed(self, latest_version: str, prerelease: bool = False) -> None:
         self._mode = "install"

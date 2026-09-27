@@ -264,6 +264,7 @@ class MainWindow(QMainWindow):
         worker = ReleaseCheckWorker(app)
         worker.resolved.connect(self._on_release_resolved)
         worker.failed.connect(self._on_release_failed)
+        worker.unreleased.connect(self._on_release_unreleased)
         worker.finished.connect(lambda: self._forget_thread(worker))
         self._threads.append(worker)
         worker.start()
@@ -272,6 +273,15 @@ class MainWindow(QMainWindow):
         card = self.cards.get(app_id)
         if card:
             card.set_error(message, offline)
+        self._pending.discard(app_id)
+        self._update_status()
+
+    def _on_release_unreleased(self, app_id: str) -> None:
+        """Listed in apps.json ahead of its first GitHub release: not an error, nothing to retry."""
+        card = self.cards.get(app_id)
+        if card:
+            installed = self.state.get(app_id)
+            card.set_unreleased(installed.version if installed else None)
         self._pending.discard(app_id)
         self._update_status()
 

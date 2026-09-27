@@ -90,6 +90,21 @@ class HubSettingsTests(unittest.TestCase):
         self.assertEqual(app.mode, "install")
         self.assertEqual(app.executable_hint, "")
 
+    def test_fileflow_entry_from_the_readme_installs_and_launches_its_exe(self):
+        entry = {
+            "id": "fileflow",
+            "name": "FileFlow",
+            "description": "Preview, organise and safely undo file moves.",
+            "category": "System & PC",
+            "badge": "Free",
+            "repo": "VaultSoft/FileFlow",
+            "icon": "icons/fileflow.svg",
+            "hub": {"exe": "FileFlow.exe"},
+        }
+        app = parse_app_list({"apps": [entry]}).apps[0]
+        self.assertEqual((app.mode, app.executable_hint, app.icon), ("install", "FileFlow.exe", "fileflow.svg"))
+        self.assertEqual(app.repo, "VaultSoft/FileFlow")
+
     def test_link_mode(self):
         (app,) = self._one(id="scribevault", badge="Free trial", hub={"mode": "link"})
         self.assertEqual(app.mode, "link")
