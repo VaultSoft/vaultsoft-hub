@@ -42,7 +42,9 @@ class ReleaseCheckWorker(QThread):
 
     def run(self) -> None:
         try:
-            release = fetch_latest_release(self.app.repo, self.app.executable_hint)
+            release = fetch_latest_release(
+                self.app.repo, self.app.executable_hint, include_prereleases=True
+            )
         except GitHubApiError as exc:
             self.failed.emit(self.app.id, str(exc))
             return

@@ -27,6 +27,13 @@ class VersionComparisonTests(unittest.TestCase):
         self.assertTrue(is_newer("1.2.1", "1.2"))
         self.assertFalse(is_newer("1.2", "1.2.1"))
 
+    def test_final_release_is_newer_than_its_beta(self):
+        self.assertTrue(is_newer("1.0.0", "1.0.0-beta"))
+        self.assertFalse(is_newer("1.0.0-beta", "1.0.0"))
+        self.assertTrue(is_newer("1.0.1-beta", "1.0.0"))
+        self.assertTrue(is_newer("1.0.0-beta.2", "1.0.0-beta.1"))
+        self.assertFalse(is_newer("1.0.0-beta", "1.0.0-beta"))
+
     def test_is_newer_falls_back_gracefully_on_unparseable_tags(self):
         # Should not raise even if a tag has no digits at all.
         self.assertFalse(is_newer("latest", "latest"))
@@ -77,6 +84,55 @@ class FetchLatestReleaseTests(unittest.TestCase):
 
         with self.assertRaises(GitHubApiError):
             fetch_latest_release("VaultSoft/Empty")
+
+
+class PrereleaseTests(unittest.TestCase):
+    def _release(self, tag, prerelease=False, draft=False):
+        return {
+            "tag_name": tag,
+            "prerelease": prerelease,
+            "draft": draft,
+            "assets": [{"name": f"App_{tag}_Portable.zip", "browser_download_url": f"https://x/{tag}.zip"}],
+        }
+
+    def _list_response(self, releases):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = releases
+        return resp
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_beta_only_repo_resolves_to_the_beta(self, mock_get):
+        mock_get.return_value = self._list_response([self._release("v1.0.0-beta", prerelease=True)])
+        release = fetch_latest_release("VaultSoft/BatteryVault", include_prereleases=True)
+        self.assertEqual(release.version, "1.0.0-beta")
+        self.assertIn("/releases?", mock_get.call_args.args[0])
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_drafts_are_skipped(self, mock_get):
+        mock_get.return_value = self._list_response(
+            [self._release("v2.0.0", draft=True), self._release("v1.1.0")]
+        )
+        release = fetch_latest_release("VaultSoft/X", include_prereleases=True)
+        self.assertEqual(release.version, "1.1.0")
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_no_releases_at_all_raises_apierror(self, mock_get):
+        mock_get.return_value = self._list_response([])
+        with self.assertRaises(GitHubApiError):
+            fetch_latest_release("VaultSoft/X", include_prereleases=True)
+
+    @patch("vaultsoft_hub.github_api.requests.get")
+    def test_default_still_uses_latest_stable(self, mock_get):
+        # The Hub's own self-update relies on this: it must never offer a beta.
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status.return_value = None
+        resp.json.return_value = self._release("v1.0.2")
+        mock_get.return_value = resp
+        fetch_latest_release("VaultSoft/vaultsoft-hub")
+        self.assertTrue(mock_get.call_args.args[0].endswith("/releases/latest"))
 
 
 if __name__ == "__main__":
