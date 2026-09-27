@@ -19,6 +19,22 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history, so the main-ancestry check below is reliable
+
+      # Only release commits that are already on main. A tag pushed from a
+      # local branch that has moved (e.g. another session merged into it
+      # without pushing) would otherwise ship code nobody tested: v1.1.1 was
+      # first published that way on 2026-09-27.
+      - name: Refuse tags that are not on origin/main
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "::error::Tag $GITHUB_REF_NAME points at $GITHUB_SHA, which is not on origin/main. Push the tested commit to main first, then tag that exact commit."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME ($GITHUB_SHA) is on origin/main."
 
       - uses: actions/setup-python@v5
         with:
