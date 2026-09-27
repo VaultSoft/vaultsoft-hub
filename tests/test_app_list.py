@@ -125,6 +125,38 @@ class FetchAppListTests(unittest.TestCase):
             fetch_app_list("https://example.invalid/apps.json")
 
 
+class HubPromoTests(unittest.TestCase):
+    def test_hub_promo_becomes_the_banner(self):
+        promo = {"enabled": True, "text": "Try StarPing", "url": "https://starping.co.uk"}
+        manifest = parse_app_list(dict(SAMPLE, hub_promo=promo))
+        self.assertTrue(manifest.cross_promo.enabled)
+        self.assertEqual(manifest.cross_promo.text, "Try StarPing")
+        self.assertEqual(manifest.cross_promo.url, "https://starping.co.uk")
+
+    def test_missing_or_odd_hub_promo_means_no_banner(self):
+        for promo in (None, False, "on", []):
+            data = dict(SAMPLE) if promo is None else dict(SAMPLE, hub_promo=promo)
+            self.assertFalse(parse_app_list(data).cross_promo.enabled)
+
+    def test_the_real_bundled_copy_has_the_starping_promo(self):
+        manifest = parse_app_list(json.loads(BUNDLED_PATH.read_text(encoding="utf-8")))
+        self.assertTrue(manifest.cross_promo.enabled)
+        self.assertIn("starping.co.uk", manifest.cross_promo.url)
+
+
+class OldHubManifestTests(unittest.TestCase):
+    """v1.0.x Hubs still read this repo's manifest.json; it must keep working for them."""
+
+    def test_manifest_json_still_has_what_v1_0_hubs_read(self):
+        data = json.loads((Path(__file__).resolve().parent.parent / "manifest.json").read_text(encoding="utf-8"))
+        self.assertTrue(data["apps"])
+        for app in data["apps"]:
+            for key in ("id", "name", "repo"):
+                self.assertTrue(app.get(key), f"{app} is missing {key}")
+        self.assertTrue(data["cross_promo"]["enabled"])
+        self.assertIn("starping.co.uk", data["cross_promo"]["url"])
+
+
 OFFLINE = requests.ConnectionError("no network")
 
 

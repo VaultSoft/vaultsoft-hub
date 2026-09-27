@@ -11,6 +11,9 @@ ignores:
     false                         don't list it in the Hub
     missing / {}                  install from `repo`, guess the exe
 
+The top-level "hub_promo" ({"enabled", "text", "url"}) is the banner at the
+bottom of the window.
+
 If the live file can't be loaded, the Hub falls back to the last good copy it
 saved, then to the copy built into the exe, so it still works offline.
 """
@@ -24,7 +27,7 @@ from typing import Optional
 import requests
 
 from .github_api import GitHubApiError
-from .models import AppEntry, Manifest
+from .models import AppEntry, CrossPromo, Manifest
 from .state import data_root
 
 REQUEST_TIMEOUT = 15
@@ -66,7 +69,15 @@ def parse_app_list(data: dict) -> Manifest:
                 mode=mode,
             )
         )
-    return Manifest(apps=apps)
+    promo = data.get("hub_promo")
+    if not isinstance(promo, dict):
+        promo = {}
+    cross_promo = CrossPromo(
+        enabled=bool(promo.get("enabled", False)),
+        text=promo.get("text", "") or "",
+        url=promo.get("url", "") or "",
+    )
+    return Manifest(apps=apps, cross_promo=cross_promo)
 
 
 def _parse_text(text: str) -> Manifest:

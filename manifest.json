@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Edit this file to add/remove apps. No rebuild of the Hub is needed — it's fetched live from GitHub. Version numbers and download links are NOT listed here; the Hub resolves those automatically from each repo's GitHub Releases at runtime.",
+  "$schema_note": "FROZEN: only VaultSoft Hub v1.0.x reads this file. v1.1.0+ reads https://vaultsoft.co.uk/apps.json instead (add apps and change the promo there). Keep this file and its cross_promo so older Hubs keep working.",
   "apps": [
     {
       "id": "pulsemonitor",
