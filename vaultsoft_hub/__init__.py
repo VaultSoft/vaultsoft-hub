@@ -1,4 +1,4 @@
-__version__ = "1.0.2"
+__version__ = "1.1.0"
 
 # The GitHub repo this Hub itself is published from, used for self-update checks.
 SELF_REPO = "VaultSoft/vaultsoft-hub"
