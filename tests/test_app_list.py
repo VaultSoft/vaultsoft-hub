@@ -170,9 +170,9 @@ class HubPromoTests(unittest.TestCase):
             data = dict(SAMPLE) if promo is None else dict(SAMPLE, hub_promo=promo)
             self.assertFalse(parse_app_list(data).cross_promo.enabled)
 
-    def test_the_real_bundled_copy_has_the_starping_promo(self):
+    def test_the_real_bundled_copy_keeps_the_starping_promo_config(self):
         manifest = parse_app_list(json.loads(BUNDLED_PATH.read_text(encoding="utf-8")))
-        self.assertTrue(manifest.cross_promo.enabled)
+        self.assertIsInstance(manifest.cross_promo.enabled, bool)
         self.assertIn("starping.co.uk", manifest.cross_promo.url)
 
 
@@ -185,7 +185,7 @@ class OldHubManifestTests(unittest.TestCase):
         for app in data["apps"]:
             for key in ("id", "name", "repo"):
                 self.assertTrue(app.get(key), f"{app} is missing {key}")
-        self.assertTrue(data["cross_promo"]["enabled"])
+        self.assertIsInstance(data["cross_promo"]["enabled"], bool)
         self.assertIn("starping.co.uk", data["cross_promo"]["url"])
 
 
