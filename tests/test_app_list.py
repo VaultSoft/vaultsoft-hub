@@ -65,6 +65,12 @@ class ParseAppListTests(unittest.TestCase):
         # apps.json only ever gains fields; old Hubs must shrug them off.
         self.assertEqual(parse_app_list(SAMPLE).apps[1].id, "wavescout")
 
+    def test_site_only_spotlight_flag_is_ignored(self):
+        # The site added "spotlight" for its homepage band (after v1.1.1 shipped).
+        plain = parse_app_list({"apps": [SAMPLE["apps"][0]]}).apps[0]
+        flagged = parse_app_list({"apps": [dict(SAMPLE["apps"][0], spotlight=True)]}).apps[0]
+        self.assertEqual(flagged, plain)
+
     def test_entries_without_id_or_name_are_skipped(self):
         data = {"apps": [{"name": "NoId"}, {"id": "noname"}, "junk", SAMPLE["apps"][0]]}
         self.assertEqual([a.id for a in parse_app_list(data).apps], ["pulsemonitor"])
@@ -90,7 +96,7 @@ class HubSettingsTests(unittest.TestCase):
         self.assertEqual(app.mode, "install")
         self.assertEqual(app.executable_hint, "")
 
-    def test_fileflow_entry_from_the_readme_installs_and_launches_its_exe(self):
+    def test_fileflow_entry_installs_and_launches_its_exe(self):
         entry = {
             "id": "fileflow",
             "name": "FileFlow",
@@ -247,6 +253,12 @@ class LoadAppListFallbackTests(unittest.TestCase):
         ids = [a.id for a in manifest.apps]
         self.assertIn("pulsemonitor", ids)
         self.assertNotIn("vaultsoft-hub", ids)
+
+    def test_the_real_bundled_copy_lists_fileflow_with_its_icon(self):
+        manifest = parse_app_list(json.loads(BUNDLED_PATH.read_text(encoding="utf-8")))
+        (ff,) = [a for a in manifest.apps if a.id == "fileflow"]
+        self.assertEqual((ff.mode, ff.executable_hint, ff.repo), ("install", "FileFlow.exe", "VaultSoft/FileFlow"))
+        self.assertTrue((BUNDLED_PATH.parent / "icons" / ff.icon).is_file())
 
 
 if __name__ == "__main__":
