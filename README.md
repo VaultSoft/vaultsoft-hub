@@ -96,10 +96,13 @@ vaultsoft_hub/
   app_list.py        loads apps.json (live, saved copy, or built-in copy)
   github_api.py      talks to the GitHub REST API (releases)
   bundled_apps.json  offline copy of the site's apps.json
-  installer.py       download / extract / find exe / launch / uninstall
+  installer.py       download / extract / find exe / launch / uninstall; an update sets the old
+                     version aside and removes it with the kit's safe delete
   state.py           local JSON record of what's installed, at which version
   self_update.py     checks the Hub's own repo for a newer build
   models.py          plain dataclasses shared across modules
+  _vendor/vaultsoft_kit/  copied from VaultSoft/vaultsoft-kit by its sync_kit.py; don't edit here
+                     (safe_delete: path checks, never follows junctions/symlinks)
   ui/
     main_window.py    the window: app list, refresh, promo banner
     app_card.py        one app's row (status + single action button)
