@@ -330,6 +330,19 @@ class MainWindow(QMainWindow):
             card.hide_progress()
             card.set_up_to_date(installed.version)
         self._update_status()
+        if installed.cleanup_issues:
+            app = self._find_app(app_id)
+            name = app.name if app else app_id
+            shown = "\n".join(installed.cleanup_issues[:5])
+            more = len(installed.cleanup_issues) - 5
+            QMessageBox.warning(
+                self,
+                "Old version partly left in place",
+                f"{name} v{installed.version} is installed, but part of the old version couldn't be "
+                f"removed safely, so it was left where it is:\n\n{shown}"
+                + (f"\n…and {more} more" if more > 0 else "")
+                + "\n\nThe Hub will try again at the next update.",
+            )
 
     def _on_install_failed(self, app_id: str, message: str) -> None:
         card = self.cards.get(app_id)

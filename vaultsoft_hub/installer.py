@@ -1,16 +1,20 @@
 """Download, extract, locate the executable, and launch an installed app."""
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 from typing import Callable, Optional
 
 import requests
 
-from .models import AppEntry, InstalledState, ReleaseInfo
+from ._vendor.vaultsoft_kit.safe_delete import CleanupOutcome, safe_delete_path, validate_cleanup_path
+from .models import AppEntry, InstalledState, ReleaseInfo, is_valid_app_id
 from .state import StateStore, apps_dir
 
 REQUEST_TIMEOUT = 30
@@ -78,26 +82,73 @@ def find_executable(root: Path, executable_hint: str = "") -> Optional[Path]:
     return min(pool, key=lambda p: len(p.relative_to(root).parts))
 
 
+def _issues(outcome: CleanupOutcome) -> list[str]:
+    return [f"{r.target}: {r.error}" for r in outcome.blocked + outcome.failed]
+
+
+def _remove_set_aside_copies(root: Path, app_id: str) -> CleanupOutcome:
+    """Delete old versions earlier updates set aside, if they can be removed safely."""
+    outcome = CleanupOutcome()
+    for old in sorted(root.glob(f"_{app_id}.old-*")):
+        outcome.add(safe_delete_path(old, approved_roots=[root], category=app_id))
+    return outcome
+
+
 def install_or_update(
     app: AppEntry,
     release: ReleaseInfo,
     state: StateStore,
     on_progress: ProgressCallback = None,
 ) -> InstalledState:
-    """Download `release`, replace any existing install of `app`, record state."""
-    install_dir = apps_dir() / app.id
-    tmp_zip = apps_dir() / f"_{app.id}_{release.version}.download"
+    """Download `release`, replace any existing install of `app`, record state.
 
+    The old version is never deleted in place. It is renamed aside first, so a
+    running app (locked files) stops the update before anything changes, and a
+    failed extract can be put back. The set-aside copy is then removed with the
+    kit's safe delete, which never follows junctions or symlinks and stays inside
+    the Apps folder; anything it can't remove safely is left where it is, listed
+    in the result's cleanup_issues, and tried again on the next update.
+    """
+    if not is_valid_app_id(app.id):
+        raise InstallError(f"Refusing to install {app.name}: its id {app.id!r} isn't a safe folder name.")
+    root = apps_dir()
+    install_dir = root / app.id
+
+    # The Apps folder and the app's folder must be real folders, not links elsewhere.
+    target = install_dir if os.path.lexists(install_dir) else root
+    check = validate_cleanup_path(target, [root], allow_root=True)
+    if not check.ok:
+        raise InstallError(f"Couldn't install {app.name} safely ({check.reason}). Nothing was changed.")
+
+    cleanup = _remove_set_aside_copies(root, app.id)
+    safe_version = re.sub(r"[^0-9A-Za-z.+-]", "_", release.version) or "download"
+    tmp_zip = root / f"_{app.id}_{safe_version}.download"
     download_file(release.download_url, tmp_zip, on_progress)
 
-    if install_dir.exists():
-        shutil.rmtree(install_dir, ignore_errors=True)
-    install_dir.mkdir(parents=True, exist_ok=True)
-
+    aside: Optional[Path] = None
     try:
-        extract_zip(tmp_zip, install_dir)
+        if os.path.lexists(install_dir):
+            aside = root / f"_{app.id}.old-{time.time_ns()}"
+            try:
+                os.rename(install_dir, aside)
+            except OSError as exc:
+                raise InstallError(
+                    f"Couldn't replace {app.name}: close it if it's running, then try again. "
+                    f"Nothing was changed. ({exc.strerror or exc})"
+                ) from exc
+        install_dir.mkdir(parents=True)
+        try:
+            extract_zip(tmp_zip, install_dir)
+        except InstallError:
+            partial = safe_delete_path(install_dir, approved_roots=[root], category=app.id)
+            if aside is not None and partial.deleted:
+                os.rename(aside, install_dir)
+            raise
     finally:
         tmp_zip.unlink(missing_ok=True)
+
+    if aside is not None:
+        cleanup.add(safe_delete_path(aside, approved_roots=[root], category=app.id))
 
     exe = find_executable(install_dir, app.executable_hint)
     installed = InstalledState(
@@ -105,6 +156,7 @@ def install_or_update(
         version=release.version,
         install_dir=str(install_dir),
         executable_path=str(exe) if exe else None,
+        cleanup_issues=_issues(cleanup),
     )
     state.set(installed)
     return installed
