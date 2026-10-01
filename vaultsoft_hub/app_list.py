@@ -27,7 +27,7 @@ from typing import Optional
 import requests
 
 from .github_api import GitHubApiError
-from .models import AppEntry, CrossPromo, Manifest
+from .models import AppEntry, CrossPromo, Manifest, is_valid_app_id
 from .state import data_root
 
 REQUEST_TIMEOUT = 15
@@ -46,6 +46,8 @@ def parse_app_list(data: dict) -> Manifest:
     for a in data["apps"]:
         if not isinstance(a, dict) or not a.get("id") or not a.get("name"):
             continue
+        if not is_valid_app_id(a["id"]):
+            continue  # the id becomes a folder name under Apps; anything else is unsafe
         hub = a.get("hub", {})
         if hub is False:
             continue

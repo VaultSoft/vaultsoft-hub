@@ -1,8 +1,17 @@
 """Plain data structures shared across the Hub."""
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional
+
+# An app's id names its folder under the Hub's Apps folder, so it must be a plain
+# lowercase slug: no separators, no "..", no drive letters, nothing to escape with.
+APP_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]{0,40}")
+
+
+def is_valid_app_id(app_id: object) -> bool:
+    return isinstance(app_id, str) and APP_ID_PATTERN.fullmatch(app_id) is not None
 
 
 @dataclass
@@ -41,6 +50,8 @@ class InstalledState:
     version: str
     install_dir: str
     executable_path: Optional[str] = None
+    # Not saved: anything from the old version an update couldn't remove safely.
+    cleanup_issues: list[str] = field(default_factory=list)
 
 
 @dataclass

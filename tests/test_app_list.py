@@ -75,6 +75,23 @@ class ParseAppListTests(unittest.TestCase):
         data = {"apps": [{"name": "NoId"}, {"id": "noname"}, "junk", SAMPLE["apps"][0]]}
         self.assertEqual([a.id for a in parse_app_list(data).apps], ["pulsemonitor"])
 
+    def test_unsafe_ids_are_skipped(self):
+        bad_ids = ["..", "../evil", "..\evil", "C:\Windows", "a/b", "a\b", "UPPER", "with space",
+                   "-leading-dash", "_hidden", "a" * 42, "dot.ted", "", 7, None, ["x"]]
+        apps = [dict(SAMPLE["apps"][0], id=i) for i in bad_ids] + [SAMPLE["apps"][1]]
+        manifest = parse_app_list(dict(SAMPLE, apps=apps))
+        self.assertEqual(["wavescout"], [a.id for a in manifest.apps])
+
+    def test_longest_allowed_id_and_dashes_are_kept(self):
+        good = ["a", "0", "a" * 41, "vaultsoft-hub", "app-2"]
+        apps = [dict(SAMPLE["apps"][0], id=i) for i in good]
+        self.assertEqual(good, [a.id for a in parse_app_list(dict(SAMPLE, apps=apps)).apps])
+
+    def test_every_id_in_the_real_bundled_copy_is_valid(self):
+        from vaultsoft_hub.models import is_valid_app_id
+        raw = json.loads(BUNDLED_PATH.read_text(encoding="utf-8"))
+        self.assertTrue(all(is_valid_app_id(a["id"]) for a in raw["apps"]), [a["id"] for a in raw["apps"]])
+
     def test_wrong_shape_raises(self):
         for bad in ([], {"apps": {}}, {"nope": []}):
             with self.assertRaises(GitHubApiError):
