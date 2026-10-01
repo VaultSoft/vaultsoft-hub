@@ -1,0 +1,11 @@
+{
+  "kit_version": "0.1.0",
+  "kit_commit": "b25235b6a67c318e72fef592cd9d2f3de02762a9",
+  "modules": [
+    "safe_delete"
+  ],
+  "files": {
+    "__init__.py": "49f183b1edaaf8f8621e255d40d880e50b2b8db1cd4760f9ba3f4b54c9349fd2",
+    "safe_delete.py": "8c24033d7aae8bc373a38582e0f5b3a7f4bf9557efce867411dae776f47864bd"
+  }
+}
